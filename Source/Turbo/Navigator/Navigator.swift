@@ -78,6 +78,12 @@ public class Navigator {
         }
 
         guard let controller = controller(for: proposal) else { return }
+        
+        let shouldStayInTab = proposal.properties["target_navigator"] as? String == "self"
+        if !shouldStayInTab {
+            controller.hidesBottomBarWhenPushed = true
+        }
+        
         hierarchyController.route(controller: controller, proposal: proposal)
     }
 
