@@ -99,6 +99,38 @@ class InternalMessageTests: XCTestCase {
         XCTAssertEqual(message?.data, [:])
     }
     
+    /// The canonical envelope in the wire message's `data` slot is passed through as `jsonData`.
+    func testJsonDataPreservesFullCanonicalEnvelopeFromDataSlot() {
+        let wireJson = """
+        {
+           "id":"1",
+           "component":"page-load",
+           "event":"loaded",
+           "data":{
+              "component":"page-load",
+              "event":"loaded",
+              "schema_version":{
+                 "major":1,
+                 "minor":17
+              },
+              "data":{
+                 "screen_id":"/x",
+                 "url":"https://e.com/x"
+              }
+           }
+        }
+        """
+        let jsonObject = wireJson.jsonObject() as! [String: AnyHashable]
+        let message = InternalMessage(jsonObject: jsonObject)!.toMessage()
+
+        let envelope = message.jsonData.jsonObject() as? [String: AnyHashable]
+        XCTAssertNotNil(envelope)
+        XCTAssertEqual(envelope?["component"] as? String, "page-load")
+        XCTAssertEqual(envelope?["event"] as? String, "loaded")
+        XCTAssertNotNil(envelope?["schema_version"])
+        XCTAssertNotNil(envelope?["data"])
+    }
+
     private func createPage() -> PageData {
         return PageData(
             metadata: InternalMessage.Metadata(url: "https://37signals.com"),

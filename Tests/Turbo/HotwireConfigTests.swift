@@ -1,6 +1,7 @@
 import XCTest
 @testable import HotwireNative
 
+@MainActor
 final class HotwireConfigTests: XCTestCase {
     func testUserAgent() {
         var config = HotwireConfig()

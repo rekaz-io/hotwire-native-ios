@@ -1,6 +1,6 @@
 public extension PathProperties {
     var context: Navigation.Context {
-        guard let rawValue = self["context"] as? String,
+        guard let rawValue = self[PathPropertyKey.context] as? String,
               let context = Navigation.Context(rawValue: rawValue) else {
             return .default
         }
@@ -9,7 +9,7 @@ public extension PathProperties {
     }
 
     var presentation: Navigation.Presentation {
-        guard let rawValue = self["presentation"] as? String,
+        guard let rawValue = self[PathPropertyKey.presentation] as? String,
               let presentation = Navigation.Presentation(rawValue: rawValue) else {
             return .default
         }
@@ -18,7 +18,7 @@ public extension PathProperties {
     }
 
     var modalStyle: Navigation.ModalStyle {
-        guard let rawValue = self["modal_style"] as? String,
+        guard let rawValue = self[PathPropertyKey.modalStyle] as? String,
               let modalStyle = Navigation.ModalStyle(rawValue: rawValue) else {
             return .large
         }
@@ -27,11 +27,11 @@ public extension PathProperties {
     }
 
     var pullToRefreshEnabled: Bool {
-        self["pull_to_refresh_enabled"] as? Bool ?? true
+        self[PathPropertyKey.pullToRefreshEnabled] as? Bool ?? true
     }
 
     var modalDismissGestureEnabled: Bool {
-        self["modal_dismiss_gesture_enabled"] as? Bool ?? true
+        self[PathPropertyKey.modalDismissGestureEnabled] as? Bool ?? true
     }
 
     /// Used to identify a custom native view controller if provided in the path configuration properties of a given pattern.
@@ -61,7 +61,7 @@ public extension PathProperties {
     /// - Important: A default value is provided in case the view controller property is missing from the configuration file. This will route the default `VisitableViewController`.
     /// - Note: A `ViewController` must conform to `PathConfigurationIdentifiable` to couple the identifier with a view controlelr.
     var viewController: String {
-        guard let viewController = self["view_controller"] as? String else {
+        guard let viewController = self[PathPropertyKey.viewController] as? String else {
             return VisitableViewController.pathConfigurationIdentifier
         }
 
@@ -70,15 +70,15 @@ public extension PathProperties {
 
     /// Allows the proposal to change the animation status when pushing, popping or presenting.
     var animated: Bool {
-        self["animated"] as? Bool ?? true
+        self[PathPropertyKey.animated] as? Bool ?? true
     }
 
     internal var historicalLocation: Bool {
-        self["historical_location"] as? Bool ?? false
+        self[PathPropertyKey.historicalLocation] as? Bool ?? false
     }
 
     var queryStringPresentation: Navigation.QueryStringPresentation {
-        guard let rawValue = self["query_string_presentation"] as? String,
+        guard let rawValue = self[PathPropertyKey.queryStringPresentation] as? String,
               let presentation = Navigation.QueryStringPresentation(rawValue: rawValue) else {
             return .default
         }

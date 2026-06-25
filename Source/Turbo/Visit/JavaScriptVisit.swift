@@ -74,7 +74,7 @@ extension JavaScriptVisit: WebViewVisitDelegate {
     
     func webView(_ webView: WebViewBridge, didRenderForVisitWithIdentifier identifier: String) {
         guard identifier == self.identifier else { return }
-        
+
         log("didRenderForVisitWithIdentifier", ["identifier": identifier])
         delegate?.visitDidRender(self)
     }

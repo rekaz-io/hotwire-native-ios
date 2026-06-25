@@ -1,6 +1,7 @@
 import UIKit
 import WebKit
 
+@MainActor
 public protocol VisitableDelegate: AnyObject {
     func visitableViewWillAppear(_ visitable: Visitable)
     func visitableViewDidAppear(_ visitable: Visitable)
@@ -10,6 +11,7 @@ public protocol VisitableDelegate: AnyObject {
     func visitableDidRequestRefresh(_ visitable: Visitable)
 }
 
+@MainActor
 public protocol Visitable: AnyObject {
     var visitableViewController: UIViewController { get }
     var visitableDelegate: VisitableDelegate? { get set }
@@ -26,6 +28,7 @@ public protocol Visitable: AnyObject {
     func visitableDidDeactivateWebView()
 }
 
+@MainActor
 extension Visitable {
     public func reloadVisitable() {
         visitableDelegate?.visitableDidRequestReload(self)

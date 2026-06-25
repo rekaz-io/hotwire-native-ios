@@ -2,6 +2,7 @@
 import WebKit
 import XCTest
 
+@MainActor
 class VisitableViewControllerTests: XCTestCase {
     var viewController: VisitableViewController!
     var webView: WebViewSpy!

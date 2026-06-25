@@ -2,6 +2,7 @@
 import SafariServices
 import XCTest
 
+@MainActor
 final class NavigationDelegateTests: XCTestCase {
     override func setUp() async throws {
         delegate = TestNavigatorDelegate()
@@ -18,7 +19,6 @@ final class NavigationDelegateTests: XCTestCase {
     private var delegate: NavigatorDelegate!
     private let navigator = Navigator(
         session: Session(webView: Hotwire.config.makeWebView()),
-        modalSession: Session(webView: Hotwire.config.makeWebView()),
         configuration: .init(
             name: "",
             startLocation: URL(string: "https://example.com")!

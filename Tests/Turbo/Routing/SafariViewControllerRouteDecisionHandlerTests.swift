@@ -1,6 +1,7 @@
 @testable import HotwireNative
 import XCTest
 
+@MainActor
 final class SafariViewControllerRouteDecisionHandlerTests: XCTestCase {
     let navigatorConfiguration = Navigator.Configuration(
         name: "test",

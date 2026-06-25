@@ -2,6 +2,7 @@ import Foundation
 
 /// Contract for handling navigation requests and actions
 /// - Note: Methods  are __optional__ by default implementation in `NavigatorDelegate` extension.
+@MainActor
 public protocol NavigatorDelegate: AnyObject {
     typealias RetryBlock = () -> Void
 

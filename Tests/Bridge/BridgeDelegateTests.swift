@@ -63,6 +63,64 @@ class BridgeDelegateTests: XCTestCase {
         XCTAssertNotNil(component?.delegate)
     }
 
+    func testBridgeDeliversMessageWithAbsentMetadata() {
+        let json = """
+            {"title":"Page-title","subtitle":"Page-subtitle"}
+        """
+        let message = Message(id: "1",
+                              component: "two",
+                              event: "connect",
+                              metadata: nil,
+                              jsonData: json)
+
+        var component: BridgeComponentSpy? = delegate.component()
+
+        XCTAssertNil(component)
+        XCTAssertTrue(delegate.bridgeDidReceiveMessage(message))
+
+        component = delegate.component()
+
+        XCTAssertNotNil(component)
+        // Make sure the component has delegate set, and did receive the message.
+        XCTAssertTrue(component!.onReceiveMessageWasCalled)
+        XCTAssertEqual(component?.onReceiveMessageArg, message)
+        XCTAssertNotNil(component?.delegate)
+    }
+
+    func testBridgeIgnoresMessageWithMalformedMetadata() {
+        let internalMessage = InternalMessage(
+            id: "1",
+            component: "two",
+            event: "connect",
+            data: [
+                "metadata": ["url": 123],
+                "title": "Page-title"
+            ]
+        )
+        let message = internalMessage.toMessage()
+
+        XCTAssertNil(delegate.component() as BridgeComponentSpy?)
+        XCTAssertFalse(delegate.bridgeDidReceiveMessage(message))
+        XCTAssertNil(delegate.component() as BridgeComponentSpy?)
+    }
+
+    func testBridgeIgnoresMessageWithMismatchedMetadataURLForKnownComponent() {
+        let json = """
+            {"title":"Page-title","subtitle":"Page-subtitle"}
+        """
+        let message = Message(id: "1",
+                              component: "two",
+                              event: "connect",
+                              metadata: .init(url: "https://37signals.com/another_url"),
+                              jsonData: json)
+
+        XCTAssertNil(delegate.component() as BridgeComponentSpy?)
+        XCTAssertFalse(delegate.bridgeDidReceiveMessage(message))
+
+        // The known component must not be created or receive the stale message.
+        XCTAssertNil(delegate.component() as BridgeComponentSpy?)
+    }
+
     func testBridgeIgnoresMessageForUnknownComponent() {
         let json = """
             {"title":"Page-title","subtitle":"Page-subtitle"}
@@ -140,6 +198,25 @@ class BridgeDelegateTests: XCTestCase {
         delegate.onViewDidDisappear()
         XCTAssertFalse(delegate.bridgeDidReceiveMessage(message))
         
+        component = delegate.component()
+        XCTAssertNil(component)
+    }
+
+    func testBridgeDropsAbsentMetadataMessageForInactiveDestination() {
+        let message = Message(id: "1",
+                              component: "two",
+                              event: "connect",
+                              metadata: nil,
+                              jsonData: json)
+
+        XCTAssertTrue(delegate.bridgeDidReceiveMessage(message))
+
+        var component: BridgeComponentSpy? = delegate.component()
+        XCTAssertNotNil(component)
+
+        delegate.onViewDidDisappear()
+        XCTAssertFalse(delegate.bridgeDidReceiveMessage(message))
+
         component = delegate.component()
         XCTAssertNil(component)
     }

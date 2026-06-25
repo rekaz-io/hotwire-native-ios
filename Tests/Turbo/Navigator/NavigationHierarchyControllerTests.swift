@@ -5,6 +5,7 @@ import XCTest
 /// Tests are written in the following format:
 /// `test_currentContext_givenContext_givenPresentation_modifiers_result()`
 /// See the README for a more visually pleasing table.
+@MainActor
 final class NavigationHierarchyControllerTests: XCTestCase {
     override func setUp() {
         navigationController = TestableNavigationController()
@@ -12,7 +13,6 @@ final class NavigationHierarchyControllerTests: XCTestCase {
 
         navigator = Navigator(
             session: session,
-            modalSession: modalSession,
             configuration: .init(name: "Test", startLocation: oneURL)
         )
         hierarchyController = NavigationHierarchyController(delegate: navigator, navigationController: navigationController, modalNavigationController: modalNavigationController)
@@ -478,7 +478,6 @@ final class NavigationHierarchyControllerTests: XCTestCase {
     private lazy var twoURL = baseURL.appendingPathComponent("/two")
 
     private let session = Session(webView: Hotwire.config.makeWebView())
-    private let modalSession = Session(webView: Hotwire.config.makeWebView())
 
     private var navigator: Navigator!
     private let alertControllerDelegate = AlertControllerDelegate()

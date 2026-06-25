@@ -1,10 +1,12 @@
 import Foundation
 import WebKit
 
+@MainActor
 public protocol WKUIControllerDelegate: AnyObject {
     func present(_ alert: UIAlertController, animated: Bool)
 }
 
+@MainActor
 open class WKUIController: NSObject, WKUIDelegate {
     private weak var delegate: WKUIControllerDelegate?
 

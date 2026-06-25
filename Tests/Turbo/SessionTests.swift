@@ -1,4 +1,5 @@
-import Embassy
+@preconcurrency import Embassy
+import EngineInterface
 @testable import HotwireNative
 import WebKit
 import XCTest
@@ -6,6 +7,7 @@ import XCTest
 private let defaultTimeout: TimeInterval = 10000
 private let turboTimeout: TimeInterval = 30
 
+@MainActor
 class SessionTests: XCTestCase {
     private let sessionDelegate = TestSessionDelegate()
     private var session: Session!
@@ -23,7 +25,8 @@ class SessionTests: XCTestCase {
         eventLoop = try SelectorEventLoop(selector: KqueueSelector())
         server = DefaultHTTPServer.turboServer(eventLoop: eventLoop)
         try server.start()
-        DispatchQueue.global().async { self.eventLoop.runForever() }
+        let eventLoop = eventLoop!
+        DispatchQueue.global().async { eventLoop.runForever() }
     }
 
     override func tearDown() {
@@ -35,6 +38,30 @@ class SessionTests: XCTestCase {
 
     func test_init_initializesWebViewWithConfiguration() {
         XCTAssertEqual(session.webView.configuration.applicationNameForUserAgent, "Hotwire Native iOS Test/1.0")
+    }
+
+    @MainActor
+    func test_firstPaint_withNoCurrentVisit_emitsNothing() {
+        var events: [EngineEvent] = []
+        session.engineEventHandler = { events.append($0) }
+
+        let bridge = WebViewBridge(webView: WKWebView())
+        session.webViewDidFirstPaint(bridge)
+
+        XCTAssertTrue(events.isEmpty)
+    }
+
+    @MainActor
+    func test_firstPaint_afterColdBoot_emitsFirstPaintForCurrentVisitLocation() async {
+        await visit("/")
+
+        var events: [EngineEvent] = []
+        session.engineEventHandler = { events.append($0) }
+
+        let bridge = WebViewBridge(webView: WKWebView())
+        session.webViewDidFirstPaint(bridge)
+
+        XCTAssertEqual(events, [.firstPaint(location: url("/"))])
     }
 
     func test_coldBootVisit_makesTheSessionTheVisitableDelegate() {
@@ -104,6 +131,37 @@ class SessionTests: XCTestCase {
         XCTAssertNotNil(sessionDelegate.failedRequestError)
         let error = try XCTUnwrap(sessionDelegate.failedRequestError)
         XCTAssertEqual(error as? TurboError, TurboError.pageLoadFailure)
+    }
+
+    // MARK: - Stale content vs in-flight forward visit
+
+    /// `markContentAsStale()` must not reload over an in-flight forward visit.
+    @MainActor
+    func test_staleContentReload_doesNotCancelInFlightForwardVisit() async throws {
+        let first = TestVisitable(url: url("/"))
+        let firstLoaded = expectation(description: "first page loads")
+        sessionDelegate.didChange = { [weak sessionDelegate] in
+            sessionDelegate?.didChange = nil
+            firstLoaded.fulfill()
+        }
+        session.visit(first)
+        await fulfillment(of: [firstLoaded], timeout: defaultTimeout)
+        session.visitableViewWillAppear(first)
+        session.visitableViewDidAppear(first)
+
+        session.markContentAsStale()
+
+        let second = TestVisitable(url: url("/one"))
+        session.visit(second)
+        sessionDelegate.sessionDidStartRequestCalled = false
+        session.visitableViewWillAppear(second)
+
+        XCTAssertFalse(sessionDelegate.sessionDidStartRequestCalled)
+        XCTAssertFalse(second.visitableDidDeactivateWebViewWasCalled)
+        XCTAssertIdentical(session.topmostVisitable, second)
+
+        session.visitableViewWillAppear(first)
+        XCTAssertTrue(sessionDelegate.sessionDidStartRequestCalled)
     }
 
     // MARK: - Server

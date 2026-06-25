@@ -1,6 +1,7 @@
 @testable import HotwireNative
 import XCTest
 
+@MainActor
 class PathConfigurationTests: XCTestCase {
     private let fileURL = Bundle.module.url(forResource: "test-configuration", withExtension: "json", subdirectory: "Fixtures")!
     var configuration: PathConfiguration!

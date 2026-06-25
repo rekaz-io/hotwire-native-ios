@@ -1,3 +1,4 @@
+import EngineInterface
 import UIKit
 import WebKit
 
@@ -5,11 +6,14 @@ import WebKit
 /// a Hotwire app in a web view. Each Session manages a single web view
 /// so you should create multiple sessions to have multiple web views, for example
 /// when using modals or tabs
+@MainActor
 public class Session: NSObject {
     public weak var delegate: SessionDelegate?
 
     public let webView: WKWebView
     public var pathConfiguration: PathConfiguration?
+
+    public var navigationPolicy: (any NavigationPolicy)?
 
     private lazy var bridge = WebViewBridge(webView: webView)
     private var initialized = false
@@ -17,6 +21,10 @@ public class Session: NSObject {
 
     private var isShowingStaleContent = false
     private var isSnapshotCacheStale = false
+
+    private let refreshCoordinator = SessionRefreshCoordinator()
+
+    public var engineEventHandler: ((EngineEvent) -> Void)?
 
     /// Automatically creates a web view with the passed-in configuration
     public convenience init(webViewConfiguration: WKWebViewConfiguration? = nil) {
@@ -32,6 +40,18 @@ public class Session: NSObject {
     private func setup() {
         webView.translatesAutoresizingMaskIntoConstraints = false
         bridge.delegate = self
+        refreshCoordinator.eventHandler = { [weak self] event in
+            self?.emit(.refresh(event))
+        }
+    }
+
+    private func emit(_ event: EngineEvent) {
+        guard let engineEventHandler else { return }
+        engineEventHandler(event)
+    }
+
+    public func invalidate() {
+        refreshCoordinator.failPendingRefresh(with: .sessionTornDown)
     }
 
     // MARK: Visiting
@@ -62,8 +82,15 @@ public class Session: NSObject {
         }
 
         let visit = makeVisit(for: visitable, options: options ?? VisitOptions())
+        if let currentVisit {
+            refreshCoordinator.visitWasCanceled(currentVisit)
+        }
         currentVisit?.cancel()
         currentVisit = visit
+
+        if visit.options.action == .restore {
+            emit(.restorationOccurred(location: visit.location))
+        }
 
         log("visit", ["location": visit.location, "options": visit.options, "reload": reload])
 
@@ -101,6 +128,32 @@ public class Session: NSObject {
     /// Reload the `Session` the next time the visitable view appears.
     public func markContentAsStale() {
         isShowingStaleContent = true
+    }
+
+    // MARK: Refreshing
+
+    public func refresh(correlationID: RefreshCorrelationID) {
+        log("refresh", ["correlationID": correlationID.rawValue])
+
+        refreshCoordinator.beginRefresh(correlationID: correlationID)
+        performPendingRefreshIfIdle()
+    }
+
+    private func performPendingRefreshIfIdle() {
+        guard refreshCoordinator.needsRefreshVisit else { return }
+        if let currentVisit, currentVisit.state == .started { return }
+
+        guard topmostVisitable != nil else {
+            refreshCoordinator.completePendingRefresh()
+            return
+        }
+
+        markSnapshotCacheAsStale()
+        reload()
+
+        if let currentVisit {
+            refreshCoordinator.refreshVisitDidStart(currentVisit)
+        }
     }
 
     // MARK: Visitable activation
@@ -154,20 +207,32 @@ public class Session: NSObject {
         guard let visit = currentVisit else { return }
 
         topmostVisit = visit
+        performPendingRefreshIfIdle()
+    }
+
+    private func dispositionProperties(for location: URL) -> PathProperties {
+        (navigationPolicy?.disposition(for: location) ?? .default).asPathProperties()
     }
 }
 
 extension Session: VisitDelegate {
     func visitRequestDidStart(_ visit: Visit) {
+        emit(.visitRequestStarted(location: visit.location))
         delegate?.sessionDidStartRequest(self)
     }
 
     func visitRequestDidFinish(_ visit: Visit) {
+        emit(.visitRequestFinished(location: visit.location))
         delegate?.sessionDidFinishRequest(self)
     }
 
     func visit(_ visit: Visit, requestDidFailWithError error: Error) {
+        emit(.visitFailed(location: visit.location, reason: EngineVisitFailureReason(error)))
+        refreshCoordinator.refreshVisitDidFail(visit)
         delegate?.session(self, didFailRequestForVisitable: visit.visitable, error: error)
+        if visit.state == .canceled {
+            performPendingRefreshIfIdle()
+        }
     }
 
     func visitDidInitializeWebView(_ visit: Visit) {
@@ -183,6 +248,7 @@ extension Session: VisitDelegate {
     }
 
     func visitDidStart(_ visit: Visit) {
+        emit(.visitStarted(location: visit.location))
         guard !visit.hasCachedSnapshot else { return }
         guard !visit.isPageRefresh else { return }
 
@@ -195,6 +261,7 @@ extension Session: VisitDelegate {
     }
 
     func visitDidRender(_ visit: Visit) {
+        emit(.visitRendered(location: visit.location))
         visit.visitable.hideVisitableScreenshot()
         visit.visitable.hideVisitableActivityIndicator()
         visit.visitable.visitableDidRender()
@@ -212,10 +279,14 @@ extension Session: VisitDelegate {
     }
 
     func visitDidFinish(_ visit: Visit) {
-        guard refreshing else { return }
+        refreshCoordinator.visitDidFinish(visit)
 
-        refreshing = false
-        visit.visitable.visitableDidRefresh()
+        if refreshing {
+            refreshing = false
+            visit.visitable.visitableDidRefresh()
+        }
+
+        performPendingRefreshIfIdle()
     }
 
     func visit(_ visit: Visit, didReceiveAuthenticationChallenge challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
@@ -223,7 +294,7 @@ extension Session: VisitDelegate {
     }
 
     func visitDidProposeVisitToLocation(_ location: URL) {
-        let properties = pathConfiguration?.properties(for: location) ?? [:]
+        let properties = dispositionProperties(for: location)
         let proposal = VisitProposal(url: location, options: VisitOptions(), properties: properties)
         delegate?.session(self, didProposeVisit: proposal)
     }
@@ -232,8 +303,12 @@ extension Session: VisitDelegate {
 extension Session: VisitableDelegate {
     public func visitableViewWillAppear(_ visitable: Visitable) {
         defer {
-            /// Nilling out the previous visit here prevents `double-snapshotting` for web -> web visits.
+            // Prevent double-snapshotting for web -> web visits.
             previousVisit = nil
+        }
+
+        if (visitable.visitableViewController as? VisitableViewController)?.appearReason == .revealedByPop {
+            emit(.revealedByPop(location: visitable.currentVisitableURL))
         }
 
         guard let topmostVisit, let currentVisit else { return }
@@ -244,15 +319,20 @@ extension Session: VisitableDelegate {
         }
 
         if isShowingStaleContent {
-            reload()
-            isShowingStaleContent = false
-            return
+            // Don't reload over an in-flight forward visit.
+            if visitable !== currentVisit.visitable {
+                reload()
+                isShowingStaleContent = false
+                return
+            }
         }
 
         // Back swipe gesture canceled.
         if visitable === topmostVisit.visitable && visitable.visitableViewController.isMovingToParent {
             if topmostVisit.state == .completed {
+                refreshCoordinator.visitWasCanceled(currentVisit)
                 currentVisit.cancel()
+                performPendingRefreshIfIdle()
             } else {
                 visit(visitable, action: .advance)
             }
@@ -263,8 +343,7 @@ extension Session: VisitableDelegate {
         if visitable === currentVisit.visitable {
             let currentVisitHasResponse = currentVisit.options.response?.responseHTML != nil
             
-            /// Most visits will be `.started` here, but form submission redirects containing `response.responseHTML` in
-            /// the modal context while navigating back to the default context will already be `.completed` at this point.
+            // Form submission redirects can already be completed here.
             if currentVisit.state == .started || (currentVisitHasResponse && currentVisit.state == .completed) {
                 completeNavigationForCurrentVisit()
                 return
@@ -277,7 +356,6 @@ extension Session: VisitableDelegate {
             return
         }
         
-        // If the topmost visitable is already the active visitable, nothing needs to be done
         if topmostVisitable === activeVisitable {
             return
         }
@@ -326,7 +404,7 @@ extension Session: VisitableDelegate {
 
 extension Session: WebViewDelegate {
     func webView(_ bridge: WebViewBridge, didProposeVisitToLocation location: URL, options: VisitOptions) {
-        let properties = pathConfiguration?.properties(for: location) ?? [:]
+        let properties = dispositionProperties(for: location)
         let proposal = VisitProposal(url: location, options: options, properties: properties)
         delegate?.session(self, didProposeVisit: proposal)
     }
@@ -389,6 +467,11 @@ extension Session: WebViewDelegate {
         }
     }
 
+    func webViewDidFirstPaint(_ bridge: WebViewBridge) {
+        guard let location = (currentVisit ?? topmostVisit)?.location else { return }
+        emit(.firstPaint(location: location))
+    }
+
     private func resolveRedirect(to location: URL, identifier: String) async {
         do {
             let result = try await RedirectHandler().resolve(location: location)
@@ -398,7 +481,7 @@ extension Session: WebViewDelegate {
                     ["location": location,
                      "visitIdentifier": identifier]
                 )
-                await failCurrentVisit(
+                failCurrentVisit(
                     with: TurboError.http(statusCode: 0),
                     visitIdentifier: identifier
                 )
@@ -410,19 +493,19 @@ extension Session: WebViewDelegate {
                      "redirectLocation": url,
                      "visitIdentifier": identifier]
                 )
-                await failCurrentVisit(
+                failCurrentVisit(
                     with: TurboError.http(statusCode: 0),
                     visitIdentifier: identifier
                 )
             case .crossOriginRedirect(let url):
-                await visitProposedToCrossOriginRedirect(
+                visitProposedToCrossOriginRedirect(
                     location: location,
                     redirectLocation: url,
                     visitIdentifier: identifier
                 )
             }
         } catch {
-            await failCurrentVisit(
+            failCurrentVisit(
                 with: error,
                 visitIdentifier: identifier
             )
@@ -470,6 +553,8 @@ extension Session: WKNavigationDelegate {
 
     public func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         log("webViewWebContentProcessDidTerminate")
+        emit(.contentProcessTerminated)
+        refreshCoordinator.failPendingRefresh(with: .webProcessTerminated)
         delegate?.sessionWebViewProcessDidTerminate(self)
     }
 }

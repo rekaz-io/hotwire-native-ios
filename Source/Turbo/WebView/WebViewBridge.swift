@@ -1,5 +1,6 @@
 import WebKit
 
+@MainActor
 protocol WebViewDelegate: AnyObject {
     func webView(_ webView: WebViewBridge, didProposeVisitToLocation location: URL, options: VisitOptions)
     func webViewDidInvalidatePage(_ webView: WebViewBridge)
@@ -8,12 +9,15 @@ protocol WebViewDelegate: AnyObject {
     func webView(_ webView: WebViewBridge, didFailInitialPageLoadWithError: Error)
     func webView(_ webView: WebViewBridge, didFailJavaScriptEvaluationWithError error: Error)
     func webView(_ webView: WebViewBridge, didFailRequestWithNonHttpStatusToLocation location: URL, identifier: String)
+    func webViewDidFirstPaint(_ webView: WebViewBridge)
 }
 
+@MainActor
 protocol WebViewPageLoadDelegate: AnyObject {
     func webView(_ webView: WebViewBridge, didLoadPageWithRestorationIdentifier restorationIdentifier: String)
 }
 
+@MainActor
 protocol WebViewVisitDelegate: AnyObject {
     func webView(_ webView: WebViewBridge, didStartVisitWithIdentifier identifier: String, hasCachedSnapshot: Bool, isPageRefresh: Bool)
     func webView(_ webView: WebViewBridge, didStartRequestForVisitWithIdentifier identifier: String, date: Date)
@@ -110,6 +114,8 @@ extension WebViewBridge: ScriptMessageHandlerDelegate {
         }
 
         switch message.name {
+        case .firstPaint:
+            delegate?.webViewDidFirstPaint(self)
         case .pageLoaded:
             pageLoadDelegate?.webView(self, didLoadPageWithRestorationIdentifier: message.restorationIdentifier!)
         case .pageLoadFailed:

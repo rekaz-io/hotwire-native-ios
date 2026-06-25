@@ -1,3 +1,4 @@
+import EngineInterface
 import Foundation
 import SafariServices
 import UIKit
@@ -7,6 +8,7 @@ class DefaultNavigatorDelegate: NSObject, NavigatorDelegate {}
 
 /// Handles navigation to new URLs using the following rules:
 /// [Navigator Handled Flows](https://native.hotwired.dev/reference/navigation)
+@MainActor
 public class Navigator {
     public weak var delegate: NavigatorDelegate?
 
@@ -20,8 +22,24 @@ public class Navigator {
         return modalSession.webView
     }
     public private(set) var session: Session
-    public private(set) var modalSession: Session
-    
+
+    public var modalSession: Session {
+        if let _modalSession {
+            return _modalSession
+        }
+        let modalSession = Session(webView: Hotwire.config.makeWebView())
+        modalSession.pathConfiguration = Hotwire.config.pathConfiguration
+        modalSession.navigationPolicy = configuration.navigationPolicy
+        modalSession.delegate = self
+        modalSession.webView.uiDelegate = webkitUIDelegate
+        _modalSession = modalSession
+        return modalSession
+    }
+
+    private var _modalSession: Session?
+
+    var hasConstructedModalSession: Bool { _modalSession != nil }
+
     /// Set to handle customize behavior of the `WKUIDelegate`.
     ///
     /// Subclass `WKUIController` to add additional behavior alongside alert/confirm dialogs.
@@ -29,7 +47,7 @@ public class Navigator {
     public var webkitUIDelegate: WKUIDelegate? {
         didSet {
             session.webView.uiDelegate = webkitUIDelegate
-            modalSession.webView.uiDelegate = webkitUIDelegate
+            _modalSession?.webView.uiDelegate = webkitUIDelegate
         }
     }
 
@@ -39,11 +57,7 @@ public class Navigator {
     public convenience init(configuration: Navigator.Configuration, delegate: NavigatorDelegate? = nil) {
         let session = Session(webView: Hotwire.config.makeWebView())
         session.pathConfiguration = Hotwire.config.pathConfiguration
-
-        let modalSession = Session(webView: Hotwire.config.makeWebView())
-        modalSession.pathConfiguration = Hotwire.config.pathConfiguration
-
-        self.init(session: session, modalSession: modalSession, delegate: delegate, configuration: configuration)
+        self.init(session: session, delegate: delegate, configuration: configuration)
     }
 
     /// Routes to the start location provided in the `Navigator.Configuration`.
@@ -64,7 +78,7 @@ public class Navigator {
     /// - Parameter options: passed options will override default `advance` visit options
     /// - Parameter parameters: provide context relevant to `url`
     public func route(_ url: URL, options: VisitOptions? = VisitOptions(action: .advance), parameters: [String: Any]? = nil) {
-        let properties = session.pathConfiguration?.properties(for: url) ?? PathProperties()
+        let properties = (session.navigationPolicy?.disposition(for: url) ?? .default).asPathProperties()
         route(VisitProposal(url: url, options: options ?? .init(action: .advance), properties: properties, parameters: parameters))
     }
 
@@ -98,10 +112,9 @@ public class Navigator {
         hierarchyController.clearAll(animated: animated)
     }
 
-    /// Reloads the main and modal `Session`.
     public func reload() {
         session.reload()
-        modalSession.reload()
+        _modalSession?.reload()
     }
 
     // MARK: Internal
@@ -109,31 +122,21 @@ public class Navigator {
     /// Modifies a UINavigationController according to visit proposals.
     lazy var hierarchyController = NavigationHierarchyController(delegate: self)
 
-    /// Internal initializer requiring preconfigured `Session` instances.
-    ///
-    /// User `init(pathConfiguration:delegate:)` to only provide a `PathConfiguration`.
-    /// - Parameters:
-    ///   - session: the main `Session`
-    ///   - modalSession: the `Session` used for the modal navigation controller
-    ///   - delegate: _optional:_ delegate to handle custom view controllers
     init(session: Session,
-         modalSession: Session,
          delegate: NavigatorDelegate? = nil,
          configuration: Navigator.Configuration) {
         self.session = session
-        self.modalSession = modalSession
         self.configuration = configuration
         self.appLifecycleObserver = AppLifecycleObserver()
 
         self.delegate = delegate ?? navigatorDelegate
 
         self.session.delegate = self
-        self.modalSession.delegate = self
+        self.session.navigationPolicy = configuration.navigationPolicy
         self.appLifecycleObserver.delegate = self
 
         self.webkitUIDelegate = WKUIController(delegate: self)
         session.webView.uiDelegate = webkitUIDelegate
-        modalSession.webView.uiDelegate = webkitUIDelegate
     }
 
     // MARK: Private
@@ -160,11 +163,16 @@ public class Navigator {
     }
 
     private func routeDecision(for location: URL) -> Router.Decision {
-        return Hotwire.config.router.decideRoute(
-            for: location,
-            configuration: configuration,
-            navigator: self
-        )
+        switch session.navigationPolicy?.routeDecision(for: location) ?? .deferToEngine {
+        case .proceed:
+            return .navigate
+        case .deferToEngine:
+            return Hotwire.config.router.decideRoute(
+                for: location,
+                configuration: configuration,
+                navigator: self
+            )
+        }
     }
 }
 
@@ -173,9 +181,8 @@ public class Navigator {
 extension Navigator: SessionDelegate {
     public func session(_ session: Session, didProposeVisit proposal: VisitProposal) {
         if proposal.isRedirect {
-            // Animate the pop only if we're in the active modal session
-            // and the visit is proposed on the default context.
-            let animatePop = session === modalSession && proposal.context == .default
+            // Use `_modalSession` to avoid constructing it during redirects.
+            let animatePop = session === _modalSession && proposal.context == .default
             pop(animated: animatePop)
         }
         route(proposal)
@@ -195,7 +202,7 @@ extension Navigator: SessionDelegate {
     }
 
     public func sessionDidFinishFormSubmission(_ session: Session) {
-        if session == modalSession {
+        if session === _modalSession {
             self.session.markSnapshotCacheAsStale()
         }
         if let url = session.topmostVisitable?.initialVisitableURL {
@@ -270,7 +277,7 @@ extension Navigator: WKUIControllerDelegate {
 
 extension Navigator {
     private func inspectAllSessions() {
-        [session, modalSession].forEach { inspect($0) }
+        [session, _modalSession].compactMap { $0 }.forEach { inspect($0) }
     }
 
     private func reloadIfPermitted(_ session: Session) {
@@ -304,14 +311,6 @@ extension Navigator {
         session.reload()
     }
 
-    /// Inspects the provided session to handle terminated web view process and reloads or recreates the web view accordingly.
-    ///
-    /// - Parameter session: The session to inspect.
-    ///
-    /// This method checks if the web view associated with the session has terminated in the background.
-    /// If so, it removes the session from the list of background terminated web view processes, reloads the session, and returns.
-    /// If the session's topmost visitable URL is not available, the method returns without further action.
-    /// If the web view's content process state is non-recoverable/terminated, it recreates the web view for the session.
     private func inspect(_ session: Session) {
         if let index = backgroundTerminatedWebViewSessions.firstIndex(where: { $0 === session }) {
             backgroundTerminatedWebViewSessions.remove(at: index)
@@ -329,26 +328,24 @@ extension Navigator {
         }
     }
 
-    /// Recreates the web view and session for the given session and performs a `replace` visit.
-    ///
-    /// - Parameter session: The session to recreate.
     private func recreateWebView(for session: Session) {
         guard let _ = session.activeVisitable?.visitableViewController,
               let url = session.activeVisitable?.initialVisitableURL else { return }
 
         let newSession = Session(webView: Hotwire.config.makeWebView())
         newSession.pathConfiguration = session.pathConfiguration
+        newSession.navigationPolicy = session.navigationPolicy
         newSession.delegate = self
         newSession.webView.uiDelegate = webkitUIDelegate
 
         if session == self.session {
             self.session = newSession
         } else {
-            modalSession = newSession
+            _modalSession = newSession
         }
 
         let options = VisitOptions(action: .replace, response: nil)
-        let properties = session.pathConfiguration?.properties(for: url) ?? PathProperties()
+        let properties = (session.navigationPolicy?.disposition(for: url) ?? .default).asPathProperties()
         route(VisitProposal(url: url, options: options, properties: properties))
     }
 }

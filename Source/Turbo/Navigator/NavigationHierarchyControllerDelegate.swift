@@ -1,6 +1,7 @@
 import SafariServices
 import WebKit
 
+@MainActor
 protocol NavigationHierarchyControllerDelegate: AnyObject {
     
     /// Once the navigation hierarchy is modified, begin a visit on a navigation controller.

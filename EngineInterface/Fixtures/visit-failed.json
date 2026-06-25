@@ -1,0 +1,32 @@
+[
+  {
+    "visitStarted" : {
+      "location" : "http:\/\/localhost:8080\/missing-library"
+    }
+  },
+  {
+    "visitRequestStarted" : {
+      "location" : "http:\/\/localhost:8080\/missing-library"
+    }
+  },
+  {
+    "firstPaint" : {
+      "location" : "http:\/\/localhost:8080\/missing-library"
+    }
+  },
+  {
+    "visitRequestFinished" : {
+      "location" : "http:\/\/localhost:8080\/missing-library"
+    }
+  },
+  {
+    "visitFailed" : {
+      "location" : "http:\/\/localhost:8080\/missing-library",
+      "reason" : {
+        "loadFailed" : {
+          "httpStatusCode" : null
+        }
+      }
+    }
+  }
+]

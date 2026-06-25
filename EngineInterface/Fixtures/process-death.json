@@ -1,0 +1,32 @@
+[
+  {
+    "visitStarted" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "visitRequestStarted" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "firstPaint" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "visitRendered" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "visitRequestFinished" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "contentProcessTerminated" : {
+
+    }
+  }
+]

@@ -2,6 +2,7 @@ import Foundation
 
 /// Routes location urls within in-app navigation or with custom behaviors
 /// provided in `RouteDecisionHandler` instances.
+@MainActor
 public final class Router {
     let decisionHandlers: [RouteDecisionHandler]
 

@@ -1,11 +1,13 @@
 import Foundation
 import UIKit
 
+@MainActor
 protocol AppLifecycleObserverDelegate: AnyObject {
     func appDidEnterBackground()
     func appWillEnterForeground()
 }
 
+@MainActor
 final class AppLifecycleObserver {
     weak var delegate: AppLifecycleObserverDelegate?
 

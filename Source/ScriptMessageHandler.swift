@@ -1,5 +1,6 @@
 import WebKit
 
+@MainActor
 protocol ScriptMessageHandlerDelegate: AnyObject {
     func scriptMessageHandlerDidReceiveMessage(_ scriptMessage: WKScriptMessage)
 }

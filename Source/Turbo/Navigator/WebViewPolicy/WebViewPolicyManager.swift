@@ -3,6 +3,7 @@ import WebKit
 
 /// Manages web view policy.
 /// You can provide custom behaviors in `WebViewPolicyDecisionHandler` instances.
+@MainActor
 public final class WebViewPolicyManager {
     let policyDecisionHandlers: [WebViewPolicyDecisionHandler]
 

@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 protocol VisitDelegate: AnyObject {
     func visitDidInitializeWebView(_ visit: Visit)
     

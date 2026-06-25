@@ -1,0 +1,32 @@
+[
+  {
+    "visitStarted" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "visitRendered" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "visitStarted" : {
+      "location" : "http:\/\/localhost:8080\/one"
+    }
+  },
+  {
+    "visitRendered" : {
+      "location" : "http:\/\/localhost:8080\/one"
+    }
+  },
+  {
+    "revealedByPop" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "restorationOccurred" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  }
+]

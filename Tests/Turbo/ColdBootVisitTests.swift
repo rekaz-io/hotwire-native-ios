@@ -2,6 +2,7 @@
 import WebKit
 import XCTest
 
+@MainActor
 class ColdBootVisitTests: XCTestCase {
     private let webView = WKWebView()
     private let visitDelegate = TestVisitDelegate()

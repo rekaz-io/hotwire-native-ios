@@ -48,6 +48,7 @@ extension ScriptMessage {
 
 extension ScriptMessage {
     enum Name: String {
+        case firstPaint
         case pageLoaded
         case pageLoadFailed
         case errorRaised

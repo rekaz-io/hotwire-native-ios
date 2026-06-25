@@ -2,6 +2,18 @@ import Foundation
 
 public typealias PathProperties = [String: AnyHashable]
 
+enum PathPropertyKey {
+    static let context = "context"
+    static let presentation = "presentation"
+    static let modalStyle = "modal_style"
+    static let queryStringPresentation = "query_string_presentation"
+    static let pullToRefreshEnabled = "pull_to_refresh_enabled"
+    static let modalDismissGestureEnabled = "modal_dismiss_gesture_enabled"
+    static let animated = "animated"
+    static let historicalLocation = "historical_location"
+    static let viewController = "view_controller"
+}
+
 public protocol PathConfigurationDelegate: AnyObject {
     /// Notifies delegate when a path configuration has been updated with new data
     func pathConfigurationDidUpdate()
@@ -53,11 +65,13 @@ public final class PathConfiguration {
     }
 
     /// Convenience method for retrieving properties for url: configuration[url]
+    @MainActor
     public subscript(url: URL) -> PathProperties {
         properties(for: url)
     }
 
     /// Returns a merged dictionary containing all the properties that match this URL.
+    @MainActor
     public func properties(for url: URL) -> PathProperties {
         if Hotwire.config.pathConfiguration.matchQueryStrings, let query = url.query {
             return properties(for: "\(url.path)?\(query)")

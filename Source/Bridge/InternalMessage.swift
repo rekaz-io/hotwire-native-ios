@@ -57,10 +57,12 @@ struct InternalMessage {
     // MARK: Utils
     
     func toMessage() -> Message {
+        let decodedMetadata = metadata()
         return Message(id: id,
                        component: component,
                        event: event,
-                       metadata: metadata(),
+                       metadata: decodedMetadata.value,
+                       metadataWasMalformed: decodedMetadata.wasMalformed,
                        jsonData: dataAsJSONString() ?? "{}")
     }
     
@@ -76,11 +78,12 @@ struct InternalMessage {
     
     // MARK: Private
     
-    private func metadata() -> Message.Metadata? {
+    private func metadata() -> (value: Message.Metadata?, wasMalformed: Bool) {
+        guard data.keys.contains("metadata") else { return (nil, false) }
         guard let jsonData = data.jsonData(),
-              let internalMetadata: InternalMessage.DataMetadata = try? jsonData.decoded() else { return nil }
+              let internalMetadata: InternalMessage.DataMetadata = try? jsonData.decoded() else { return (nil, true) }
         
-        return Message.Metadata(url: internalMetadata.metadata.url)
+        return (Message.Metadata(url: internalMetadata.metadata.url), false)
     }
     
     private func dataAsJSONString() -> String? {

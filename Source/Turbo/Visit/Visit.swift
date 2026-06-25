@@ -8,6 +8,7 @@ enum VisitState {
     case completed
 }
 
+@MainActor
 class Visit: NSObject {
     weak var delegate: VisitDelegate?
     let visitable: Visitable

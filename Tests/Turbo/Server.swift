@@ -25,6 +25,8 @@ extension DefaultHTTPServer {
                 respondWithFile(resourceName: "turbolinks-5.3.0-dev", resourceType: "js")
             case "/":
                 respondWithFile(resourceName: "turbo", resourceType: "html")
+            case "/one":
+                respondWithFile(resourceName: "turbo", resourceType: "html")
             case "/turbolinks":
                 respondWithFile(resourceName: "turbolinks", resourceType: "html")
             case "/turbolinks-5.3":

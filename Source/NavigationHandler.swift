@@ -9,6 +9,7 @@ import Foundation
 /// circular dependency between the two.
 ///
 /// - Note: See `NumbersViewController` in the demo app for an example.
+@MainActor
 public protocol NavigationHandler: AnyObject {
     func route(_ url: URL)
 

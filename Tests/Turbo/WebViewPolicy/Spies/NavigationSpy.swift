@@ -9,7 +9,6 @@ final class NavigationSpy: Navigator {
     init(configuration: Navigator.Configuration) {
         super.init(
             session: Session(webView: Hotwire.config.makeWebView()),
-            modalSession: Session(webView: Hotwire.config.makeWebView()),
             configuration: configuration
         )
     }

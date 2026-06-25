@@ -9,7 +9,6 @@ final class NavigationHierarchyControllerHistoricalLocationTests: XCTestCase {
 
         navigator = Navigator(
             session: session,
-            modalSession: modalSession,
             configuration: .init(
                 name: "test",
                 startLocation: URL(string: "https://example.com/default_one")!
@@ -121,7 +120,6 @@ final class NavigationHierarchyControllerHistoricalLocationTests: XCTestCase {
     }
 
     private let session = SessionSpy(webView: Hotwire.config.makeWebView())
-    private let modalSession = Session(webView: Hotwire.config.makeWebView())
 
     private var navigator: Navigator!
     private var hierarchyController: NavigationHierarchyController!

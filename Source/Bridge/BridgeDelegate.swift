@@ -132,8 +132,10 @@ public final class BridgeDelegate: BridgingDelegate {
     
     @discardableResult
     public func bridgeDidReceiveMessage(_ message: Message) -> Bool {
+        // Accept legacy messages without metadata, but reject stale metadata.
         guard destinationIsActive,
-              resolvedLocation == message.metadata?.url else {
+              !message.metadataWasMalformed,
+              message.metadata.map({ $0.url == resolvedLocation }) ?? true else {
             logger.warning("bridgeDidIgnoreMessage: \(String(describing: message))")
             return false
         }

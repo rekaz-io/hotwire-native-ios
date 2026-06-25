@@ -1,0 +1,63 @@
+[
+  {
+    "visitStarted" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "visitRequestStarted" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "firstPaint" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "visitRendered" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "visitRequestFinished" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "visitStarted" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "visitRequestStarted" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "firstPaint" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "visitRendered" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "visitRequestFinished" : {
+      "location" : "http:\/\/localhost:8080\/"
+    }
+  },
+  {
+    "refresh" : {
+      "_0" : {
+        "completed" : {
+          "_0" : {
+            "rawValue" : "refresh-success"
+          }
+        }
+      }
+    }
+  }
+]

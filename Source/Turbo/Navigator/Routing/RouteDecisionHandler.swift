@@ -3,6 +3,7 @@ import WebKit
 
 /// An interface to implement to provide custom
 /// route decision handling behaviors in your app.
+@MainActor
 public protocol RouteDecisionHandler {
     /// The decision handler name used in debug logging.
     var name: String { get }

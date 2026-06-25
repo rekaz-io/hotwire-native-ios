@@ -15,6 +15,8 @@ public struct Message: Equatable {
     
     /// The metadata associated with the message, which includes its url.
     public let metadata: Metadata?
+
+    let metadataWasMalformed: Bool
     
     /// Data, represented in a json object string, to send along with the message.
     /// For a "page" component, this might be `{"title": "Page Title"}`.
@@ -30,6 +32,22 @@ public struct Message: Equatable {
         self.component = component
         self.event = event
         self.metadata = metadata
+        self.metadataWasMalformed = false
+        self.jsonData = jsonData
+    }
+
+    init(id: String,
+         component: String,
+         event: String,
+         metadata: Metadata?,
+         metadataWasMalformed: Bool,
+         jsonData: String)
+    {
+        self.id = id
+        self.component = component
+        self.event = event
+        self.metadata = metadata
+        self.metadataWasMalformed = metadataWasMalformed
         self.jsonData = jsonData
     }
 }
@@ -47,6 +65,7 @@ public extension Message {
                 component: component,
                 event: updatedEvent ?? event,
                 metadata: metadata,
+                metadataWasMalformed: metadataWasMalformed,
                 jsonData: updatedData ?? jsonData)
     }
     
@@ -55,6 +74,7 @@ public extension Message {
     ///   - updatedEvent: The updated event of this message. If omitted, the existing event is used.
     ///   - data: An instance conforming to `Encodable` to be included as data in the message.
     /// - Returns: A new `Message` with the provided data.
+    @MainActor
     func replacing<T: Encodable>(event updatedEvent: String? = nil,
                                  data: T) -> Message
     {
@@ -72,6 +92,7 @@ public extension Message {
     
     /// Returns a value of the type you specify, decoded from the `jsonData`.
     /// - Returns: A value of the specified type, if the decoder can parse the data, otherwise nil.
+    @MainActor
     func data<T: Decodable>() -> T? {
         guard let data = jsonData.data(using: .utf8) else {
             logger.error("Error converting json string to data: \(jsonData)")
@@ -119,6 +140,7 @@ public extension Message {
             lhs.component == rhs.component &&
             lhs.event == rhs.event &&
             lhs.metadata == rhs.metadata &&
+            lhs.metadataWasMalformed == rhs.metadataWasMalformed &&
             lhs.jsonData.jsonObject() as? [String: AnyHashable] == rhs.jsonData.jsonObject() as? [String: AnyHashable]
     }
 }

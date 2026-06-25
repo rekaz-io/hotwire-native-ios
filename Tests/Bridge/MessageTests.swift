@@ -1,6 +1,7 @@
 @testable import HotwireNative
 import XCTest
 
+@MainActor
 class MessageTests: XCTestCase {
     private let metadata = Message.Metadata(url: "https://37signals.com")
     

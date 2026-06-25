@@ -12,6 +12,10 @@ let package = Package(
             name: "HotwireNative",
             targets: ["HotwireNative"]
         ),
+        .library(
+            name: "EngineInterface",
+            targets: ["EngineInterface"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/AliSoftware/OHHTTPStubs", .upToNextMajor(from: "9.0.0")),
@@ -19,8 +23,16 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "HotwireNative",
+            name: "EngineInterface",
             dependencies: [],
+            path: "EngineInterface",
+            resources: [
+                .copy("Fixtures")
+            ]
+        ),
+        .target(
+            name: "HotwireNative",
+            dependencies: ["EngineInterface"],
             path: "Source",
             resources: [
                 .copy("Turbo/WebView/turbo.js"),
@@ -31,6 +43,7 @@ let package = Package(
             name: "HotwireNativeTests",
             dependencies: [
                 "HotwireNative",
+                "EngineInterface",
                 .product(name: "OHHTTPStubsSwift", package: "OHHTTPStubs"),
                 .product(name: "Embassy", package: "Embassy")
             ],

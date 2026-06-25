@@ -3,6 +3,7 @@ import WebKit
 
 /// An interface to implement to provide custom
 /// WebView policy decision handling behaviors in your app.
+@MainActor
 public protocol WebViewPolicyDecisionHandler {
     /// The decision handler name used in debug logging.
     var name: String { get }

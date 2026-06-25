@@ -160,6 +160,7 @@
     }
 
     visitRendered(visit) {
+      this.postFirstPaintAfterNextRepaint()
       this.postMessageAfterNextRepaint("visitRendered", { identifier: visit.identifier })
     }
 
@@ -208,6 +209,10 @@
         })
       }
     }
+
+    postFirstPaintAfterNextRepaint() {
+      this.postMessageAfterNextRepaint("firstPaint", {})
+    }
   }
 
   addEventListener("error", event => {
@@ -216,6 +221,9 @@
   }, false)
 
   window.turboNative = new TurboNative()
+
+  // Emit first paint without waiting for Turbo to load.
+  window.turboNative.postFirstPaintAfterNextRepaint()
 
   const setup = function() {
     window.turboNative.registerAdapter()

@@ -124,6 +124,7 @@ private final class TestWebView: WKWebView {
 
     override func evaluateJavaScript(_ javaScriptString: String) async throws -> Any {
         lastEvaluatedJavaScript = javaScriptString
-        return try await super.evaluateJavaScript(javaScriptString)
+        let result = try await super.evaluateJavaScript(javaScriptString)
+        return result as Any
     }
 }

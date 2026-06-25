@@ -2,6 +2,7 @@ import SafariServices
 import UIKit
 import WebKit
 
+@MainActor
 class NavigationHierarchyController {
     let navigationController: UINavigationController
     let modalNavigationController: UINavigationController
@@ -25,12 +26,12 @@ class NavigationHierarchyController {
 
     init(
         delegate: NavigationHierarchyControllerDelegate,
-        navigationController: UINavigationController = Hotwire.config.defaultNavigationController(),
-        modalNavigationController: UINavigationController = Hotwire.config.defaultNavigationController()
+        navigationController: UINavigationController? = nil,
+        modalNavigationController: UINavigationController? = nil
     ) {
         self.delegate = delegate
-        self.navigationController = navigationController
-        self.modalNavigationController = modalNavigationController
+        self.navigationController = navigationController ?? Hotwire.config.defaultNavigationController()
+        self.modalNavigationController = modalNavigationController ?? Hotwire.config.defaultNavigationController()
     }
 
     func route(controller: UIViewController, proposal: VisitProposal) {

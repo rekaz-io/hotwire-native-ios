@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 import WebKit
 
+@MainActor
 public struct HotwireConfig {
     public typealias WebViewBlock = (_ configuration: WKWebViewConfiguration) -> WKWebView
 

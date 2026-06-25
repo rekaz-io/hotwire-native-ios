@@ -1,11 +1,13 @@
 import SwiftUI
 
+@MainActor
 public protocol ErrorPresenter: UIViewController {
     typealias Handler = () -> Void
 
     func presentError(_ error: Error, retryHandler: Handler?)
 }
 
+@MainActor
 public extension ErrorPresenter {
     /// Presents an error in a full screen view.
     /// The error view will display a `Retry` button if `retryHandler != nil`.

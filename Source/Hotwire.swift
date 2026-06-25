@@ -1,5 +1,6 @@
 import WebKit
 
+@MainActor
 public enum Hotwire {
     /// Use this instance to configure Hotwire.
     public static var config = HotwireConfig()

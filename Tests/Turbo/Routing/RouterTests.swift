@@ -1,6 +1,7 @@
 @testable import HotwireNative
 import XCTest
 
+@MainActor
 final class RouterTests: XCTestCase {
     let navigatorConfiguration = Navigator.Configuration(
         name: "test",

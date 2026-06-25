@@ -1,6 +1,7 @@
 import UIKit
 import WebKit
 
+@MainActor
 public protocol SessionDelegate: AnyObject {
     func session(_ session: Session, didProposeVisit proposal: VisitProposal)
     func session(_ session: Session,  didProposeVisitToCrossOriginRedirect location: URL)
