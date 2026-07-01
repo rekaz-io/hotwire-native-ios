@@ -40,12 +40,16 @@
 
     visitLocationWithOptionsAndRestorationIdentifier(location, options, restorationIdentifier) {
       if (window.Turbo) {
-        if (Turbo.navigator.locationWithActionIsSamePage(new URL(location), options.action)) {
+        const turboNavigator = Turbo.navigator
+        const isSamePageLocation = typeof turboNavigator.locationWithActionIsSamePage == "function" &&
+          turboNavigator.locationWithActionIsSamePage(new URL(location), options.action)
+
+        if (isSamePageLocation) {
           // Skip the same-page anchor scrolling behavior for visits initiated from the native
           // side. The page content may be stale and we want a fresh request from the network.
-          Turbo.navigator.startVisit(location, restorationIdentifier, { "action": "replace" })
+          turboNavigator.startVisit(location, restorationIdentifier, { "action": "replace" })
         } else {
-          Turbo.navigator.startVisit(location, restorationIdentifier, options)
+          turboNavigator.startVisit(location, restorationIdentifier, options)
         }
       } else if (window.Turbolinks) {
         if (Turbolinks.controller.startVisitToLocationWithAction) {
@@ -55,6 +59,14 @@
           // Turbolinks 5.3
           Turbolinks.controller.startVisitToLocation(location, restorationIdentifier, options)
         }
+      }
+    }
+
+    restorePoppedLocationWithRestorationIdentifier(location, restorationIdentifier) {
+      if ((window.Turbo || window.Turbolinks) && history.length > 1) {
+        history.back()
+      } else {
+        this.visitLocationWithOptionsAndRestorationIdentifier(location, { action: "restore" }, restorationIdentifier)
       }
     }
 

@@ -59,6 +59,7 @@ public class Session: NSObject {
     private var currentVisit: Visit?
     private var topmostVisit: Visit?
     private var previousVisit: Visit?
+    private var pendingPopRestorationVisitable: Visitable?
 
     /// The topmost visitable is the visitable that has most recently completed a visit
     public var topmostVisitable: Visitable? {
@@ -75,13 +76,26 @@ public class Session: NSObject {
     }
 
     public func visit(_ visitable: Visitable, options: VisitOptions? = nil, reload: Bool = false) {
+        visit(visitable, options: options, reload: reload, restorationBehavior: .normal)
+    }
+
+    private func visit(
+        _ visitable: Visitable,
+        options: VisitOptions? = nil,
+        reload: Bool = false,
+        restorationBehavior: JavaScriptVisit.RestorationBehavior
+    ) {
         visitable.visitableDelegate = self
 
         if reload {
             initialized = false
         }
 
-        let visit = makeVisit(for: visitable, options: options ?? VisitOptions())
+        let visit = makeVisit(
+            for: visitable,
+            options: options ?? VisitOptions(),
+            restorationBehavior: restorationBehavior
+        )
         if let currentVisit {
             refreshCoordinator.visitWasCanceled(currentVisit)
         }
@@ -98,9 +112,19 @@ public class Session: NSObject {
         visit.start()
     }
 
-    private func makeVisit(for visitable: Visitable, options: VisitOptions) -> Visit {
+    private func makeVisit(
+        for visitable: Visitable,
+        options: VisitOptions,
+        restorationBehavior: JavaScriptVisit.RestorationBehavior = .normal
+    ) -> Visit {
         if initialized {
-            return JavaScriptVisit(visitable: visitable, options: options, bridge: bridge, restorationIdentifier: restorationIdentifier(for: visitable))
+            return JavaScriptVisit(
+                visitable: visitable,
+                options: options,
+                bridge: bridge,
+                restorationIdentifier: restorationIdentifier(for: visitable),
+                restorationBehavior: restorationBehavior
+            )
         } else {
             return ColdBootVisit(visitable: visitable, options: options, bridge: bridge)
         }
@@ -307,7 +331,8 @@ extension Session: VisitableDelegate {
             previousVisit = nil
         }
 
-        if (visitable.visitableViewController as? VisitableViewController)?.appearReason == .revealedByPop {
+        let isRevealedByPop = (visitable.visitableViewController as? VisitableViewController)?.appearReason == .revealedByPop
+        if isRevealedByPop {
             emit(.revealedByPop(location: visitable.currentVisitableURL))
         }
 
@@ -352,6 +377,11 @@ extension Session: VisitableDelegate {
 
         // Navigating backward from a web view screen to a web view screen.
         if visitable !== topmostVisit.visitable {
+            if isRevealedByPop {
+                pendingPopRestorationVisitable = visitable
+                return
+            }
+
             visit(visitable, action: .restore)
             return
         }
@@ -367,6 +397,24 @@ extension Session: VisitableDelegate {
     }
 
     public func visitableViewDidAppear(_ visitable: Visitable) {
+        if let pendingPopRestorationVisitable {
+            if visitable === pendingPopRestorationVisitable {
+                self.pendingPopRestorationVisitable = nil
+                visit(
+                    visitable,
+                    options: VisitOptions(action: .restore),
+                    restorationBehavior: .historyPop
+                )
+                return
+            }
+
+            if let topmostVisit, visitable === topmostVisit.visitable {
+                self.pendingPopRestorationVisitable = nil
+                emit(.restorationOccurred(location: topmostVisit.location))
+                return
+            }
+        }
+
         if let currentVisit = currentVisit, visitable === currentVisit.visitable {
             // Appearing after successful navigation
             completeNavigationForCurrentVisit()

@@ -69,6 +69,13 @@ final class WebViewBridge {
         ])
     }
 
+    func restorePoppedLocation(_ location: URL, restorationIdentifier: String?) {
+        callJavaScript(function: "window.turboNative.restorePoppedLocationWithRestorationIdentifier", arguments: [
+            location.absoluteString,
+            restorationIdentifier
+        ])
+    }
+
     func clearSnapshotCache() {
         callJavaScript(function: "window.turboNative.clearSnapshotCache")
     }

@@ -166,8 +166,39 @@ class EngineEventStreamTests: XCTestCase {
         session.visitableViewWillAppear(popVisitable)
 
         let revealed = try XCTUnwrap(receivedEvents.firstIndex(of: .revealedByPop(location: url("/"))))
+        XCTAssertFalse(receivedEvents.contains(.restorationOccurred(location: url("/"))))
+
+        session.visitableViewDidAppear(popVisitable)
+
         let restored = try XCTUnwrap(receivedEvents.firstIndex(of: .restorationOccurred(location: url("/"))))
         XCTAssertLessThan(revealed, restored, "revealedByPop must precede restorationOccurred on a pop-back")
+    }
+
+    @MainActor
+    func test_revealedByPop_whenPopGestureIsCanceled_restoresOriginalPageChrome() async throws {
+        try await coldBoot(TestVisitable(url: url("/")))
+
+        let detail = TestVisitable(url: url("/one"))
+        let detailRendered = expectation(description: "detail renders")
+        sessionDelegate.didChange = { [weak sessionDelegate] in
+            sessionDelegate?.didChange = nil
+            detailRendered.fulfill()
+        }
+        session.visit(detail, reload: true)
+        await fulfillment(of: [detailRendered], timeout: defaultTimeout)
+        session.visitableViewWillAppear(detail)
+        session.visitableViewDidAppear(detail)
+        receivedEvents.removeAll()
+
+        let popVisitable = RevealedByPopVisitable(url: url("/"))
+        popVisitable.visitableDelegate = session
+        session.visitableViewWillAppear(popVisitable)
+        session.visitableViewDidAppear(detail)
+
+        XCTAssertEqual(receivedEvents, [
+            .revealedByPop(location: url("/")),
+            .restorationOccurred(location: url("/one"))
+        ])
     }
 
     // MARK: - Fixture round-trip
