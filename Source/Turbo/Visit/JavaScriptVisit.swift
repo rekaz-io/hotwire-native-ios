@@ -5,16 +5,8 @@ import Foundation
 /// or if a `reload()` is issued.
 final class JavaScriptVisit: Visit {
     var identifier = "(pending)"
-    private let restorationBehavior: RestorationBehavior
-    
-    init(
-        visitable: Visitable,
-        options: VisitOptions,
-        bridge: WebViewBridge,
-        restorationIdentifier: String?,
-        restorationBehavior: RestorationBehavior = .normal
-    ) {
-        self.restorationBehavior = restorationBehavior
+
+    init(visitable: Visitable, options: VisitOptions, bridge: WebViewBridge, restorationIdentifier: String?) {
         super.init(visitable: visitable, options: options, bridge: bridge)
         self.restorationIdentifier = restorationIdentifier
     }
@@ -26,13 +18,7 @@ final class JavaScriptVisit: Visit {
     override func startVisit() {
         log("startVisit")
         bridge.visitDelegate = self
-
-        switch restorationBehavior {
-        case .normal:
-            bridge.visitLocation(location, options: options, restorationIdentifier: restorationIdentifier)
-        case .historyPop:
-            bridge.restorePoppedLocation(location, restorationIdentifier: restorationIdentifier)
-        }
+        bridge.visitLocation(location, options: options, restorationIdentifier: restorationIdentifier)
     }
 
     override func cancelVisit() {
@@ -44,13 +30,6 @@ final class JavaScriptVisit: Visit {
     override func failVisit() {
         log("failVisit")
         finishRequest()
-    }
-}
-
-extension JavaScriptVisit {
-    enum RestorationBehavior {
-        case normal
-        case historyPop
     }
 }
 

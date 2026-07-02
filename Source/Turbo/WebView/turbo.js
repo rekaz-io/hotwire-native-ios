@@ -62,14 +62,6 @@
       }
     }
 
-    restorePoppedLocationWithRestorationIdentifier(location, restorationIdentifier) {
-      if ((window.Turbo || window.Turbolinks) && history.length > 1) {
-        history.back()
-      } else {
-        this.visitLocationWithOptionsAndRestorationIdentifier(location, { action: "restore" }, restorationIdentifier)
-      }
-    }
-
     clearSnapshotCache() {
       if (window.Turbo) {
         Turbo.session.clearCache()

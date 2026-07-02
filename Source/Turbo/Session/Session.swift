@@ -76,26 +76,13 @@ public class Session: NSObject {
     }
 
     public func visit(_ visitable: Visitable, options: VisitOptions? = nil, reload: Bool = false) {
-        visit(visitable, options: options, reload: reload, restorationBehavior: .normal)
-    }
-
-    private func visit(
-        _ visitable: Visitable,
-        options: VisitOptions? = nil,
-        reload: Bool = false,
-        restorationBehavior: JavaScriptVisit.RestorationBehavior
-    ) {
         visitable.visitableDelegate = self
 
         if reload {
             initialized = false
         }
 
-        let visit = makeVisit(
-            for: visitable,
-            options: options ?? VisitOptions(),
-            restorationBehavior: restorationBehavior
-        )
+        let visit = makeVisit(for: visitable, options: options ?? VisitOptions())
         if let currentVisit {
             refreshCoordinator.visitWasCanceled(currentVisit)
         }
@@ -112,19 +99,9 @@ public class Session: NSObject {
         visit.start()
     }
 
-    private func makeVisit(
-        for visitable: Visitable,
-        options: VisitOptions,
-        restorationBehavior: JavaScriptVisit.RestorationBehavior = .normal
-    ) -> Visit {
+    private func makeVisit(for visitable: Visitable, options: VisitOptions) -> Visit {
         if initialized {
-            return JavaScriptVisit(
-                visitable: visitable,
-                options: options,
-                bridge: bridge,
-                restorationIdentifier: restorationIdentifier(for: visitable),
-                restorationBehavior: restorationBehavior
-            )
+            return JavaScriptVisit(visitable: visitable, options: options, bridge: bridge, restorationIdentifier: restorationIdentifier(for: visitable))
         } else {
             return ColdBootVisit(visitable: visitable, options: options, bridge: bridge)
         }
@@ -200,6 +177,8 @@ public class Session: NSObject {
     private func deactivateVisitable(_ visitable: Visitable, showScreenshot: Bool = false) {
         guard isActivatedVisitable(visitable) else { return }
 
+        recordScrollOffset(for: visitable)
+
         if showScreenshot {
             visitable.updateVisitableScreenshot()
             visitable.showVisitableScreenshot()
@@ -211,6 +190,33 @@ public class Session: NSObject {
 
     private func isActivatedVisitable(_ visitable: Visitable) -> Bool {
         return visitable === activatedVisitable
+    }
+
+    // MARK: Scroll restoration
+
+    private var visitableScrollOffsets = NSMapTable<UIViewController, NSValue>(keyOptions: NSPointerFunctions.Options.weakMemory, valueOptions: [])
+
+    /// Capture the offset while the web view still displays this visitable's
+    /// page, so a later restore visit can reapply it even when Turbo's own
+    /// restoration data is gone (cleared snapshot cache, cold boot, process death).
+    private func recordScrollOffset(for visitable: Visitable) {
+        visitableScrollOffsets.setObject(
+            NSValue(cgPoint: webView.scrollView.contentOffset),
+            forKey: visitable.visitableViewController
+        )
+    }
+
+    private func restoreScrollOffsetIfNeeded(for visit: Visit) {
+        guard visit.options.action == .restore,
+              let offset = visitableScrollOffsets.object(forKey: visit.visitable.visitableViewController)
+        else { return }
+
+        visitableScrollOffsets.removeObject(forKey: visit.visitable.visitableViewController)
+
+        // Applied unclamped: the scroll view's contentSize can lag the render,
+        // and clamping against a stale (small) contentSize would discard the
+        // offset. WebKit reconciles out-of-range offsets once layout settles.
+        webView.scrollView.setContentOffset(offset.cgPointValue, animated: false)
     }
 
     // MARK: Restoration Identifiers
@@ -286,6 +292,7 @@ extension Session: VisitDelegate {
 
     func visitDidRender(_ visit: Visit) {
         emit(.visitRendered(location: visit.location))
+        restoreScrollOffsetIfNeeded(for: visit)
         visit.visitable.hideVisitableScreenshot()
         visit.visitable.hideVisitableActivityIndicator()
         visit.visitable.visitableDidRender()
@@ -398,18 +405,17 @@ extension Session: VisitableDelegate {
 
     public func visitableViewDidAppear(_ visitable: Visitable) {
         if let pendingPopRestorationVisitable {
-            if visitable === pendingPopRestorationVisitable {
-                self.pendingPopRestorationVisitable = nil
-                visit(
-                    visitable,
-                    options: VisitOptions(action: .restore),
-                    restorationBehavior: .historyPop
-                )
-                return
-            }
+            self.pendingPopRestorationVisitable = nil
 
-            if let topmostVisit, visitable === topmostVisit.visitable {
-                self.pendingPopRestorationVisitable = nil
+            if visitable === pendingPopRestorationVisitable {
+                visit(visitable, options: VisitOptions(action: .restore))
+                // Fall through: the restore visit is now `currentVisit`, so the
+                // branch below completes navigation and activates the visitable,
+                // exactly as it does for a restore started in `willAppear`.
+            } else if let topmostVisit, visitable === topmostVisit.visitable {
+                // Pop gesture canceled. The deferral means the web view never
+                // left this page, so no visit is needed; emit restoration so
+                // the app can re-apply this page's chrome.
                 emit(.restorationOccurred(location: topmostVisit.location))
                 return
             }
