@@ -55,7 +55,9 @@ open class VisitableViewController: UIViewController, Visitable {
     // MARK: Visitable
 
     open func visitableDidRender() {
-        navigationItem.title = visitableView.webView?.title
+        if Hotwire.config.updatesNavigationItemTitleOnRender {
+            navigationItem.title = visitableView.webView?.title
+        }
         visitableLocationState = .resolved
     }
 

@@ -33,6 +33,32 @@ class VisitableViewControllerTests: XCTestCase {
         XCTAssertEqual(viewController.currentVisitableURL, overriddenURL)
     }
 
+    func test_visitableDidRender_setsNavigationItemTitleFromWebViewByDefault() {
+        webView.overriddenTitle = "Web Page Title"
+        viewController.visitableView.activateWebView(webView, forVisitable: viewController)
+        viewController.visitableDidRender()
+
+        XCTAssertEqual(viewController.navigationItem.title, "Web Page Title")
+    }
+
+    func test_visitableDidRender_withTitleUpdatesDisabled_leavesNavigationItemTitleUntouched() {
+        Hotwire.config.updatesNavigationItemTitleOnRender = false
+        defer { Hotwire.config.updatesNavigationItemTitleOnRender = true }
+
+        webView.overriddenTitle = "Web Page Title"
+        viewController.navigationItem.title = "Stamped"
+        viewController.visitableView.activateWebView(webView, forVisitable: viewController)
+        viewController.visitableDidRender()
+
+        XCTAssertEqual(viewController.navigationItem.title, "Stamped")
+
+        // The location state must still transition to .resolved so
+        // currentVisitableURL tracks the web view.
+        let overriddenURL = URL(string: "https://example.com?tab=a")!
+        webView.overriddenURL = overriddenURL
+        XCTAssertEqual(viewController.currentVisitableURL, overriddenURL)
+    }
+
     func test_currentURL_matches_new_webview_url_on_webView_deactivation() {
         viewController.visitableView.activateWebView(webView, forVisitable: viewController)
         viewController.visitableDidRender()
@@ -52,8 +78,13 @@ class VisitableViewControllerTests: XCTestCase {
 
 final class WebViewSpy: WKWebView {
     var overriddenURL: URL?
+    var overriddenTitle: String?
 
     override var url: URL? {
         overriddenURL
+    }
+
+    override var title: String? {
+        overriddenTitle
     }
 }

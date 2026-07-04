@@ -24,6 +24,12 @@ public struct HotwireConfig {
     /// Sets the back button display mode of `HotwireWebViewController`.
     public var backButtonDisplayMode = UINavigationItem.BackButtonDisplayMode.default
 
+    /// When enabled, `VisitableViewController.visitableDidRender()` copies the
+    /// web page's `document.title` into `navigationItem.title` on every render.
+    /// Disable when the app owns navigation-bar chrome and web page titles
+    /// must never reach the shared navigation bar.
+    public var updatesNavigationItemTitleOnRender = true
+
     /// Set to true to only show the tab bar on the root screens.
     public var hidesTabBarWhenPushed = false
 
